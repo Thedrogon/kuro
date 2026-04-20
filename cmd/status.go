@@ -94,6 +94,63 @@ var statusCmd = &cobra.Command{
 
 		// TODO: Add the loop here to parse the numbers (e.g., "1,2" or "0") 
 		// and run runner.Install() for each selected package, then update state.Save()
+		// THE PARSING LOGIC
+		var selectedUpdates []updateItem
+
+		if input == "0" {
+			// User wants to update everything
+			selectedUpdates = updates
+		} else {
+			// Parse comma-separated numbers safely
+			parts := strings.Split(input, ",")
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p == "" {
+					continue
+				}
+				
+				idx, err := strconv.Atoi(p)
+				if err != nil || idx < 1 || idx > len(updates) {
+					fmt.Printf("Warning: '%s' is an invalid selection. Skipping.\n", p)
+					continue
+				}
+				
+				// Arrays are 0-indexed, but our UI list was 1-indexed
+				selectedUpdates = append(selectedUpdates, updates[idx-1])
+			}
+		}
+
+		if len(selectedUpdates) == 0 {
+			fmt.Println("No valid updates selected. Exiting.")
+			os.Exit(0)
+		}
+
+		// THE EXECUTION LOOP
+		fmt.Printf("\nProceeding with %d updates...\n", len(selectedUpdates))
+		
+		for _, u := range selectedUpdates {
+			ui.PrintStep(fmt.Sprintf("Updating %s to %s via %s...", u.Name, u.Latest, u.Target.Manager))
+			
+			stream := &ui.LogStream{}
+			err := runner.Install(u.Target.Manager, u.Target.RealName, stream)
+			
+			if err != nil {
+				fmt.Printf("\nFailed to update %s: %v\n", u.Name, err)
+				continue // Skip updating the registry for this specific package if it fails
+			}
+
+			// Update the local state version exactly matching upstream
+			lang := reg.Languages[u.Name]
+			lang.Version = u.Latest
+			reg.Languages[u.Name] = lang
+			
+			ui.PrintSuccess(fmt.Sprintf("Successfully updated %s.", u.Name))
+		}
+
+		// Save the global state once all installations are complete
+		if err := state.Save(reg); err != nil {
+			fmt.Println("Warning: Updates succeeded, but failed to write to registry.toml:", err)
+		}
 		fmt.Printf("Proceeding to update selection: %s\n", input)
 	},
 }

@@ -12,6 +12,7 @@ type Target struct {
 }
 
 // Common aliases to make the Developer Experience (DX) flawless.
+//not used anymore
 var aliases = map[string]string{
 	"node":   "nodejs",
 	"golang": "go",
@@ -24,7 +25,7 @@ var aliases = map[string]string{
 func Resolve(pkgName string) (*Target, error) {
 	// 1. Translate user intent using the alias map
 	realName := pkgName
-	if val, ok := aliases[pkgName]; ok {
+	if val, ok := Aliases[pkgName]; ok {
 		realName = val
 	}
 

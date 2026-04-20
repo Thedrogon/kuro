@@ -26,7 +26,7 @@ var removeCmd = &cobra.Command{
 		}
 
 		// Check if we actually track it
-		lang, exists := reg.Languages[pkgName]
+		_, exists := reg.Languages[pkgName]
 		if !exists {
 			fmt.Printf("'%s' is not tracked by kuro.\n", pkgName)
 			os.Exit(1)

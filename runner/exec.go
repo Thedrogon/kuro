@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strconv"
 	"os/exec"
 )
 
@@ -35,5 +36,26 @@ func Install(manager, pkgName string, logStream io.Writer) error {
 	cmd.Stdin = os.Stdin
 
 	// Execute and wait for completion.
+	return cmd.Run()
+}
+
+// Remove executes the uninstallation process securely.
+func Remove(manager, pkgName string, logStream io.Writer) error {
+	var cmd *exec.Cmd
+
+	switch manager {
+	case "pacman":
+		// -Rns removes the package, configuration files, and unneeded dependencies
+		cmd = exec.Command("sudo", "pacman", "-Rns", "--noconfirm", pkgName)
+	case "paru", "yay":
+		cmd = exec.Command(manager, "-Rns", "--noconfirm", pkgName)
+	default:
+		return errors.New("unsupported package manager: " + manager)
+	}
+
+	cmd.Stdout = logStream
+	cmd.Stderr = logStream
+	cmd.Stdin = os.Stdin
+
 	return cmd.Run()
 }

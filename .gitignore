@@ -11,7 +11,7 @@
 # Output of the go build command
 # If you build with 'go build -o myapp', add 'myapp' here
 bin/
-
+kuro
 # Code coverage profiles and other test artifacts
 *.out
 coverage.*

@@ -63,14 +63,13 @@ func Load() (*Registry, error) {
 	return &reg, nil
 }
 
-// Save writes the current state back to disk cleanly.
+// Save writes the current state back to disk cleanly and atomically.
 func Save(reg *Registry) error {
 	path, err := getRegistryPath()
 	if err != nil {
 		return err
 	}
 
-	// Stamp the registry with the exact moment it was modified
 	reg.LastUpdated = time.Now().UTC()
 
 	data, err := toml.Marshal(reg)
@@ -78,14 +77,18 @@ func Save(reg *Registry) error {
 		return err
 	}
 
-	// Ensure the parent directories exist securely.
-	// 0755 gives the owner full rights, and others read/execute only.
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
 
-	// Write the actual file securely.
-	// 0644 ensures only the user can write to it, preventing tampering.
-	return os.WriteFile(path, data, 0644)
+	// ACID CONSISTENCY: Write to a .tmp file first.
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return err // Failed to write tmp file, original is untouched.
+	}
+
+	// Atomic rename: This happens at the OS kernel level. 
+	// It is impossible to corrupt the file during this swap.
+	return os.Rename(tmpPath, path)
 }

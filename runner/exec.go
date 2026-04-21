@@ -10,32 +10,46 @@ import (
 // Install executes the package manager strictly and securely.
 // It streams all text output to logStream so the UI can render it in real-time.
 func Install(manager, pkgName string, logStream io.Writer) error {
-	var cmd *exec.Cmd
-
-	// Construct the exact command sequence. 
-	// We strictly use individual arguments to completely prevent command injection.
+	// PHASE 1: DOWNLOAD ONLY (Atomicity)
+	// -Sw tells pacman/paru to sync and download the tarball, but NOT install it.
+	var dlCmd *exec.Cmd
 	switch manager {
 	case "pacman":
-		// Official repos require sudo.
-		cmd = exec.Command("sudo", "pacman", "-S", "--noconfirm", pkgName)
+		dlCmd = exec.Command("sudo", "pacman", "-Sw", "--noconfirm", pkgName)
 	case "paru", "yay":
-		// AUR helpers handle root internally. Running them with sudo breaks them.
-		cmd = exec.Command(manager, "-S", "--noconfirm", pkgName)
+		dlCmd = exec.Command(manager, "-Sw", "--noconfirm", pkgName)
 	default:
 		return errors.New("unsupported package manager: " + manager)
 	}
 
-	// PERFORMANCE: Direct io.Writer routing. 
-	// We don't buffer logs in memory; we stream them directly to the UI component.
-	cmd.Stdout = logStream
-	cmd.Stderr = logStream
+	dlCmd.Stdout = logStream
+	dlCmd.Stderr = logStream
+	dlCmd.Stdin = os.Stdin
 
-	// CRITICAL: We bind standard input directly to the terminal.
-	// If sudo requires a password, the terminal will still accept the user's keystrokes.
-	cmd.Stdin = os.Stdin
+	// If the download fails (network drop, bad signature), we halt. The system is untouched.
+	if err := dlCmd.Run(); err != nil {
+		return errors.New("phase 1 (download) failed: " + err.Error())
+	}
 
-	// Execute and wait for completion.
-	return cmd.Run()
+	// PHASE 2: INSTALL FROM CACHE
+	var instCmd *exec.Cmd
+	switch manager {
+	case "pacman":
+		instCmd = exec.Command("sudo", "pacman", "-S", "--noconfirm", pkgName)
+	case "paru", "yay":
+		instCmd = exec.Command(manager, "-S", "--noconfirm", pkgName)
+	}
+
+	instCmd.Stdout = logStream
+	instCmd.Stderr = logStream
+	instCmd.Stdin = os.Stdin
+
+	// Since the package is already downloaded and verified, this executes entirely offline.
+	if err := instCmd.Run(); err != nil {
+		return errors.New("phase 2 (install) failed: " + err.Error())
+	}
+
+	return nil
 }
 
 // Remove executes the uninstallation process securely.

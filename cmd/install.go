@@ -17,6 +17,11 @@ var installCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pkgName := args[0]
+
+		if !resolver.IsValidName(pkgName) {
+			fmt.Printf("Error: '%s' contains invalid characters for a package name.\n", pkgName)
+			os.Exit(1)
+		}
 		ui.PrintStep(fmt.Sprintf("Checking environment for '%s'...", pkgName))
 
 		// 1. Load Local State

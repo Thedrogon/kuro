@@ -3,12 +3,20 @@ package resolver
 import (
 	"errors"
 	"os/exec"
+	"regexp"
 )
 
 // Target holds the finalized, resolved instructions for the Execution layer.
 type Target struct {
 	RealName string // What the system actually calls it (e.g., "nodejs")
 	Manager  string // "pacman", "paru", or "yay"
+}
+
+// IsValidName ensures no malicious characters are passed to the OS.
+func IsValidName(name string) bool {
+	// Arch packages only allow alphanumeric, hyphens, underscores, and dots.
+	valid := regexp.MustCompile(`^[a-zA-Z0-9\-_\.]+$`)
+	return valid.MatchString(name)
 }
 
 // Common aliases to make the Developer Experience (DX) flawless.

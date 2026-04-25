@@ -8,7 +8,6 @@ import (
 )
 
 // Install executes the package manager strictly and securely.
-// It streams all text output to logStream so the UI can render it in real-time.
 func Install(manager, pkgName string, logStream io.Writer) error {
 	// PHASE 1: DOWNLOAD ONLY (Atomicity)
 	// -Sw tells pacman/paru to sync and download the tarball, but NOT install it.
@@ -50,25 +49,4 @@ func Install(manager, pkgName string, logStream io.Writer) error {
 	}
 
 	return nil
-}
-
-// Remove executes the uninstallation process securely.
-func Remove(manager, pkgName string, logStream io.Writer) error {
-	var cmd *exec.Cmd
-
-	switch manager {
-	case "pacman":
-		// -Rns removes the package, configuration files, and unneeded dependencies
-		cmd = exec.Command("sudo", "pacman", "-Rns", "--noconfirm", pkgName)
-	case "paru", "yay":
-		cmd = exec.Command(manager, "-Rns", "--noconfirm", pkgName)
-	default:
-		return errors.New("unsupported package manager: " + manager)
-	}
-
-	cmd.Stdout = logStream
-	cmd.Stderr = logStream
-	cmd.Stdin = os.Stdin
-
-	return cmd.Run()
 }
